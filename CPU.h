@@ -1,3 +1,16 @@
+/*
+ * CPU.h
+ *
+ *  Created on: Oct 29, 2018
+ *      Author: SilverDragoon
+ */
+
+/*
+ * CPU.h
+ *
+ *  Created on: Sep 25, 2018
+ *      Author: SilverDragoon
+ */
 
 #ifndef TRACE_ITEM_H
 #define TRACE_ITEM_H
@@ -116,7 +129,7 @@ int write_trace(struct instruction item, char *fname)
 	fclose(out_fd);
 	if (!n_items) return 0;				/* if no more items in the file, we are done */
 
-		
+
 	return 1;
 }
 
