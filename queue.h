@@ -1,5 +1,7 @@
 /*REPURPOSED QUEUE CODE FROM MY CS1550 PROJECT*/
-/*USE THIS QUEUE FOR TO STORE REPRESENT THE WRITE BUFFER*/
+/*USE THIS QUEUE TO REPRESENT THE WRITE BUFFER*/
+
+#include <sys/mman.h>
 
 //simple queue holds car information
 struct queue {
@@ -22,7 +24,7 @@ void initialize_queue(struct queue *q, int queue_capacity)
 	q->capacity = queue_capacity;
 	q->size = 0;
 	q->front = 0;
-	q->back = INVALID;
+	q->back = -1;
 	q->elements = mmap(NULL, sizeof(int) * queue_capacity, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, 0, 0);
 }
 
@@ -30,11 +32,11 @@ void initialize_queue(struct queue *q, int queue_capacity)
 int enqueue(struct queue *q, int element)
 {
 	if(q->size == q->capacity)
-		return FALSE;
+		return 0;
 	(q->size)++;
 	(q->back) = (q->back + 1) % q->capacity;
 	q->elements[q->back] = element;
-	return TRUE;
+	return 1;
 }
 
 //remove an element from the rear of the queue
