@@ -21,6 +21,7 @@
 #include <string.h>
 #include "CPU.h"
 #include "cache.h"
+#include "queue.h"
 
 unsigned char get_prediction(struct instruction *instr);
 void update_prediction(struct instruction *instr, unsigned char new_prediction);
@@ -33,14 +34,18 @@ unsigned char is_right_target(struct instruction *instr);
 
 struct prediction ht[HASH_TABLE_SIZE];
 struct instruction PREFETCH[2];
+struct queue write_buffer;				//the actual write buffer
 
 // cache statistics
-unsigned int I_accesses = 0;
+unsigned int I_accesses = 0;	//instruction cache hits + misses
 unsigned int I_misses = 0;
-unsigned int D_accesses = 0;
+unsigned int D_accesses = 0;	//data cache hits + misses
 unsigned int D_misses = 0;
-unsigned int WB_accesses = 0;
-unsigned int WB_waits = 0;
+unsigned int WB_accesses = 0;      
+unsigned int d_writebacks = 0;  //# of times we write back from L1 to L2
+unsigned int L2_accesses = 0;   
+unsigned int WB_N1 = 0;			//# of times we find an L1 miss in the write buffer before checking L2
+unsigned int WB_N2 = 0;			//# of times we evict a dirty block but the write buffer is full
 
 int main(int argc, char **argv)
 {
@@ -51,13 +56,13 @@ int main(int argc, char **argv)
   	  return(-1);
   }
 
-  unsigned int I_size;
-  unsigned int I_assoc;
-  unsigned int D_size;
-  unsigned int D_assoc;
-  unsigned int B_size;
-  unsigned int WB_size;
-  unsigned int miss_penalty;
+  unsigned int I_size;        	//size of the instruction cache, in KB
+  unsigned int I_assoc;			//associativity of the instruction cache
+  unsigned int D_size;			//size of the data cache, in KB
+  unsigned int D_assoc;			//associativity of the data cache
+  unsigned int B_size;			//block size for both L1 caches and the L2 cache
+  unsigned int WB_size;			//size of the write buffer in entries (0 means no buffer)
+  unsigned int miss_penalty;	//the number of cycles it takes to access the L2 cache
 
   if(fscanf(config, "%d %d %d %d %d %d %d", &I_size, &I_assoc, &D_size, &D_assoc, &B_size, &WB_size,&miss_penalty) <= 0){
   	  printf("Could not parse file properly");
@@ -99,11 +104,15 @@ int main(int argc, char **argv)
   }
 
   trace_init();
+
+  //construct the data and instruction caches
   struct cache_t *I_cache;
   I_cache = cache_create(I_size, B_size, I_assoc);
   struct cache_t *D_cache;
   D_cache = cache_create(D_size, B_size, D_assoc);
 
+  if(WB_size)
+  	initialize_queue(&write_buffer, WB_size);
 
   while(1) {
 
@@ -130,13 +139,16 @@ int main(int argc, char **argv)
       size = trace_get_item(&tr_entry); /* put the instruction into a buffer */
 
     if (!size && flush_counter==0) {       /* no more instructions (instructions) to simulate */
-	  float i_missrate = (((double)I_misses/(double)I_accesses)*100.0);
-	  double d_missrate = (((double)D_misses)/((double)D_accesses)*100.0);
+	  double i_missrate = 100 *((double)I_misses/I_accesses);
+	  double d_missrate = 0;
+	  if(D_accesses > 0)
+	  	d_missrate = 100 *((double)D_misses/D_accesses);
+
       printf("+ Simulation terminates at cycle : %u\n", cycle_number);
-      printf("D-cache accesses: %u, hits: %u, misses: %u, missrate: %f%, write backs: %u\n", D_accesses, D_accesses - D_misses, D_misses, d_missrate, 0);
-      printf("I-cache accesses: %u, hits: %u, misses: %u, missrate: %f%\n", I_accesses, I_accesses - I_misses, I_misses, i_missrate);
-	  printf("L2 cache accesses: %u\n", 99);
-	  printf("Write Buffer N1: %u, Write Buffer N2: %u\n", 1, 1);
+      printf("L1 Data cache:\t\t%u accesses, %u hits, %u misses, %0.2f%% miss rate, %u write backs\n", D_accesses, (D_accesses - D_misses), D_misses, d_missrate, d_writebacks);
+      printf("L1 Instruction cache:\t%u accesses, %u hits, %u misses, %0.2f%% miss rate\n",I_accesses, (I_accesses - I_misses), I_misses, i_missrate);
+	  printf("L2 cache:\t\t%u accesses\n", L2_accesses);
+	  printf("Write Buffer:\t\t%u N1, %u N2\n", WB_N1, WB_N2);
       break;
     }
     else{              /* move the pipeline forward */
@@ -166,10 +178,47 @@ int main(int argc, char **argv)
           if (cache_access(I_cache, IF.PC, 0) > 0)	/* stall the pipe if instruction fetch returns a miss */
 		  {
         	  // if miss in L1 (I) or miss in L2 (D) or WB full,
-			  cycle_number = cycle_number + miss_penalty;
+			  cycle_number += miss_penalty;
 			  I_misses++;
+			  L2_accesses++;
 		  }
 		  I_accesses++;
+		  if(MEM.type == ti_LOAD)
+		  {
+		  	D_accesses++;
+		  	int access_result = cache_access(D_cache, MEM.PC, 0);
+		  	if (access_result == 1)
+		  	{
+		  		cycle_number += miss_penalty;
+		  		D_misses++;
+		  		L2_accesses++;
+		  	}
+		  	else if (access_result == 2)
+		  	{
+		  		cycle_number += miss_penalty * 2;
+		  		D_misses++;
+		  		L2_accesses++;
+		  		d_writebacks++;
+		  	}
+		  }
+		  else if(MEM.type == ti_STORE)
+		  {
+		  	D_accesses++;
+		  	int access_result = cache_access(D_cache, MEM.PC, 1);
+		  	if (access_result == 1)
+		  	{
+		  		cycle_number += miss_penalty;
+		  		D_misses++;
+		  		L2_accesses++;
+		  	}
+		  	else if (access_result == 2)
+		  	{
+		  		cycle_number += miss_penalty * 2;
+		  		D_misses++;
+		  		L2_accesses++;
+		  		d_writebacks++;
+		  	}
+		  }
         }
       }
 
