@@ -114,6 +114,8 @@ int main(int argc, char **argv)
   if(WB_size)
   	initialize_queue(&write_buffer, WB_size);
 
+  unsigned int evicted_block; //holds the address of an evicted block, if any
+
   while(1) {
 
     int has_data_hazard = check_data_hazard(&PREFETCH[0], &PREFETCH[1]);
@@ -172,10 +174,13 @@ int main(int argc, char **argv)
         insert_noop(&PREFETCH[1]);
         flush_counter--;
       }
-      else{
-        if(!has_data_hazard && !squash_counter){
+      else
+      {
+      	int access_result;
+      	if(!has_data_hazard && !squash_counter){
           memcpy(&PREFETCH[1], tr_entry , sizeof(IF));
-          if (cache_access(I_cache, IF.PC, 0) > 0)	/* stall the pipe if instruction fetch returns a miss */
+          access_result = cache_access(I_cache, IF.PC, 0, &evicted_block);
+          if (access_result > 0)	/* stall the pipe if instruction fetch returns a miss */
 		  {
         	  // if miss in L1 (I) or miss in L2 (D) or WB full,
 			  cycle_number += miss_penalty;
@@ -186,7 +191,7 @@ int main(int argc, char **argv)
 		  if(MEM.type == ti_LOAD)
 		  {
 		  	D_accesses++;
-		  	int access_result = cache_access(D_cache, MEM.PC, 0);
+		  	access_result = cache_access(D_cache, MEM.PC, 0, &evicted_block);
 		  	if (access_result == 1)
 		  	{
 		  		cycle_number += miss_penalty;
@@ -199,12 +204,13 @@ int main(int argc, char **argv)
 		  		D_misses++;
 		  		L2_accesses++;
 		  		d_writebacks++;
+		  		printf("LOAD writeback -- Evicted block is : %x\n", evicted_block);
 		  	}
 		  }
 		  else if(MEM.type == ti_STORE)
 		  {
 		  	D_accesses++;
-		  	int access_result = cache_access(D_cache, MEM.PC, 1);
+		  	access_result = cache_access(D_cache, MEM.PC, 1, &evicted_block);
 		  	if (access_result == 1)
 		  	{
 		  		cycle_number += miss_penalty;
@@ -217,6 +223,7 @@ int main(int argc, char **argv)
 		  		D_misses++;
 		  		L2_accesses++;
 		  		d_writebacks++;
+		  		printf("STORE writeback -- Evicted block is : %x\n", evicted_block);
 		  	}
 		  }
         }
