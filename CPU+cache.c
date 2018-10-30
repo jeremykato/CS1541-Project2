@@ -78,7 +78,8 @@ int main(int argc, char **argv)
   int prediction_method = 0;
   int squash_counter = 0;
   int flush_counter = 6; //5 stage pipeline and 2-part buffer, so we have to move 6 instructions once trace is done
-
+  unsigned int stalled = 0;
+  unsigned int l2_used = 0;
   int cycle_number = -2;  //start at -2 to ignore filling the PREFETCH QUEUE
 
   memset(ht, 0, HASH_TABLE_SIZE * sizeof(struct prediction));
@@ -118,6 +119,16 @@ int main(int argc, char **argv)
 
   while(1) {
 
+  	if(l2_used)
+  		l2_used--;
+
+  	if(stalled)
+  		{
+  			cycle_number++;
+  			stalled--;
+  			continue;
+  		}
+
     int has_data_hazard = check_data_hazard(&PREFETCH[0], &PREFETCH[1]);
 
     if(prediction_method == 0 && check_control_hazard(&PREFETCH[0], &PREFETCH[1]))
@@ -154,6 +165,7 @@ int main(int argc, char **argv)
       break;
     }
     else{              /* move the pipeline forward */
+
       cycle_number++;
 
       /* move instructions one stage ahead */
@@ -182,8 +194,8 @@ int main(int argc, char **argv)
           access_result = cache_access(I_cache, IF.PC, 0, &evicted_block);
           if (access_result > 0)	/* stall the pipe if instruction fetch returns a miss */
 		  {
-        	  // if miss in L1 (I) or miss in L2 (D) or WB full,
-			  cycle_number += miss_penalty;
+			  stalled += miss_penalty;
+			  l2_used += miss_penalty;
 			  I_misses++;
 			  L2_accesses++;
 		  }
@@ -192,38 +204,96 @@ int main(int argc, char **argv)
 		  {
 		  	D_accesses++;
 		  	access_result = cache_access(D_cache, MEM.PC, 0, &evicted_block);
+		  	if(access_result > 0)
+		  	{
+		  		D_misses++;
+		  		if(WB_size){
+			  		cycle_number++; //check write buffer penalty
+			  		if(contains(&write_buffer, MEM.PC)) //miss found in WB
+			  		{
+			  			WB_N1++;
+			  			access_result = 0; //now it's an effective hit
+			  		}
+		  		}
+		  	}
 		  	if (access_result == 1)
 		  	{
-		  		cycle_number += miss_penalty;
-		  		D_misses++;
+		  		stalled += miss_penalty;
+		  		l2_used += miss_penalty;
 		  		L2_accesses++;
 		  	}
 		  	else if (access_result == 2)
 		  	{
-		  		cycle_number += miss_penalty * 2;
-		  		D_misses++;
-		  		L2_accesses++;
 		  		d_writebacks++;
-		  		printf("LOAD writeback -- Evicted block is : %x\n", evicted_block);
+		  		if(WB_size){
+			  		if(write_buffer.size < WB_size)
+			  			enqueue(&write_buffer, evicted_block);
+			  		else
+			  		{
+			  			cycle_number+=l2_used;		//finish current transaction
+			  			l2_used = 0;
+			  			dequeue(&write_buffer);		//forced writeback
+			  			cycle_number += miss_penalty;
+			  			enqueue(&write_buffer, evicted_block);
+			  			WB_N2++;
+			  			L2_accesses++;
+			  		}
+			  	}
+			  	else{ //need to writeback now if no write buffer
+			  		stalled += miss_penalty;
+			  		l2_used += miss_penalty;
+			  	}
+		  		stalled += miss_penalty;
+		  		l2_used += miss_penalty;
+		  		L2_accesses++;
 		  	}
 		  }
 		  else if(MEM.type == ti_STORE)
 		  {
 		  	D_accesses++;
 		  	access_result = cache_access(D_cache, MEM.PC, 1, &evicted_block);
+		  	if(access_result > 0)
+		  	{
+		  		D_misses++;
+		  		if(WB_size){
+			  		cycle_number++; //check write buffer penalty
+			  		if(contains(&write_buffer, MEM.PC)) //miss found in WB
+			  		{
+			  			WB_N1++;
+			  			access_result = 0; //now it's an effective hit
+			  		}
+			  	}
+		  	}
 		  	if (access_result == 1)
 		  	{
-		  		cycle_number += miss_penalty;
-		  		D_misses++;
+		  		stalled += miss_penalty;
+		  		l2_used += miss_penalty;
 		  		L2_accesses++;
 		  	}
 		  	else if (access_result == 2)
 		  	{
-		  		cycle_number += miss_penalty * 2;
-		  		D_misses++;
-		  		L2_accesses++;
 		  		d_writebacks++;
-		  		printf("STORE writeback -- Evicted block is : %x\n", evicted_block);
+		  		if(WB_size){
+			  		if(write_buffer.size < WB_size)
+			  			enqueue(&write_buffer, evicted_block);
+			  		else
+			  		{
+			  			cycle_number+=l2_used;
+			  			l2_used = 0;
+			  			dequeue(&write_buffer);
+			  			cycle_number += miss_penalty;
+			  			enqueue(&write_buffer, evicted_block);
+			  			WB_N2++;
+			  			L2_accesses++;
+			  		}
+			  	}
+			  	else{ //need to writeback now if no write buffer
+			  		stalled += miss_penalty;
+			  		l2_used += miss_penalty;
+			  	}
+		  		stalled += miss_penalty;
+		  		l2_used += miss_penalty;
+		  		L2_accesses++;
 		  	}
 		  }
         }
@@ -231,6 +301,15 @@ int main(int argc, char **argv)
 
       if(squash_counter)
         squash_counter--;
+      if(!stalled)
+      {
+      	if(WB_size && !l2_used == 0 && write_buffer.size > 0)
+      	{
+      		dequeue(&write_buffer); //assume can't access this once WB begins
+      		l2_used += miss_penalty;
+      		L2_accesses++;
+      	}
+      }
 
       //printf("==============================================================================\n");
     }
@@ -360,5 +439,3 @@ unsigned int is_branch_taken(struct instruction *branch_instr, struct instructio
 
   return 0;
 }
-
-
