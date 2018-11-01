@@ -6,7 +6,7 @@
  */
 /**************************************************************/
 /* CS/COE 1541
-   Project 1 5-Stage Pipeline Simulator
+   Project 2 5-Stage Pipeline Simulator with Cache simulation
    Collaborators: Zachary Whitney, Albert Yang, Jeremy Kato
    IDS: zdw9, aly31, jdk81
    compile with gcc -o pipeline five_stage.c
@@ -152,6 +152,16 @@ int main(int argc, char **argv)
       size = trace_get_item(&tr_entry); /* put the instruction into a buffer */
 
     if (!size && flush_counter==0) {       /* no more instructions (instructions) to simulate */
+
+      //consume any remaining write buffer entries
+      cycle_number += l2_used;
+      while(write_buffer.size > 0)
+      {
+      	dequeue(&write_buffer);
+      	cycle_number += miss_penalty;
+      	L2_accesses++;
+      }
+
 	  double i_missrate = 100 *((double)I_misses/I_accesses);
 	  double d_missrate = 0;
 	  if(D_accesses > 0)
@@ -190,8 +200,11 @@ int main(int argc, char **argv)
       {
       	int access_result;
       	if(!has_data_hazard && !squash_counter){
-          memcpy(&PREFETCH[1], tr_entry , sizeof(IF));
-          access_result = cache_access(I_cache, IF.PC, 0, &evicted_block);
+
+          memcpy(&PREFETCH[1], tr_entry , sizeof(IF)); //get next instruction
+          access_result = cache_access(I_cache, IF.PC, 0, &evicted_block); //check for a hit
+          I_accesses++;
+
           if (access_result > 0)	/* stall the pipe if instruction fetch returns a miss */
 		  {
 			  stalled += miss_penalty;
@@ -199,7 +212,7 @@ int main(int argc, char **argv)
 			  I_misses++;
 			  L2_accesses++;
 		  }
-		  I_accesses++;
+		  
 		  if(MEM.type == ti_LOAD)
 		  {
 		  	D_accesses++;
