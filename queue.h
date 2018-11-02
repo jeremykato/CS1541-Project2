@@ -56,3 +56,19 @@ int peek(struct queue *q)
 {
 	return q->elements[q->front];
 }
+
+//returns 1 if the queue contains the value in question, otherwise 0
+//performs a sequential search
+int contains(struct queue *q, int value)
+{
+	int j = q->front; //physical index
+	for(int i = 0; i < q->size; i++) //logical index
+	{
+		if(q->elements[j] == value)
+		{
+			return 1;
+		}
+		j = (j + 1) % q->capacity;
+	}
+	return 0;
+}
