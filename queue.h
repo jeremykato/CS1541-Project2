@@ -4,7 +4,7 @@
 #include <sys/mman.h>
 
 //simple queue holds car information
-struct queue {
+struct zqueue {
 	int size;
 	int capacity;
 	int front;
@@ -13,13 +13,13 @@ struct queue {
 };
 
 //simple queue interface methods
-void initialize_queue(struct queue *q, int queue_capacity);
-int enqueue(struct queue *q, int element);
-int dequeue(struct queue *q);
-int peek(struct queue *q);
+void initialize_queue(struct zqueue *q, int queue_capacity);
+int enqueue(struct zqueue *q, int element);
+int dequeue(struct zqueue *q);
+int peek(struct zqueue *q);
 
 //make an empty queue and return a pointer to it
-void initialize_queue(struct queue *q, int queue_capacity)
+void initialize_queue(struct zqueue *q, int queue_capacity)
 {
 	q->capacity = queue_capacity;
 	q->size = 0;
@@ -29,7 +29,7 @@ void initialize_queue(struct queue *q, int queue_capacity)
 }
 
 //add an element to the back of the queue
-int enqueue(struct queue *q, int element)
+int enqueue(struct zqueue *q, int element)
 {
 	if(q->size == q->capacity)
 		return 0;
@@ -41,7 +41,7 @@ int enqueue(struct queue *q, int element)
 
 //remove an element from the rear of the queue
 //returns element if possible, otherwise -1
-int dequeue(struct queue *q)
+int dequeue(struct zqueue *q)
 {
 	if(q->size <= 0)
 		return -1;
@@ -52,14 +52,14 @@ int dequeue(struct queue *q)
 }
 
 //get a reference to the front of the queue without dequeueing it
-int peek(struct queue *q)
+int peek(struct zqueue *q)
 {
 	return q->elements[q->front];
 }
 
 //returns 1 if the queue contains the value in question, otherwise 0
 //performs a sequential search
-int contains(struct queue *q, int value)
+int contains(struct zqueue *q, int value)
 {
 	int j = q->front; //physical index
 	for(int i = 0; i < q->size; i++) //logical index

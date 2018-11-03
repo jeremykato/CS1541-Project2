@@ -34,7 +34,7 @@ unsigned char is_right_target(struct instruction *instr);
 
 struct prediction ht[HASH_TABLE_SIZE];
 struct instruction PREFETCH[2];
-struct queue write_buffer;				//the actual write buffer
+struct zqueue write_buffer;				//the actual write buffer
 
 // cache statistics
 unsigned int I_accesses = 0;	//instruction cache hits + misses
@@ -200,8 +200,7 @@ int main(int argc, char **argv)
             I_accesses++;
           if (access_result > 0)	/* stall the pipe if instruction fetch returns a miss */
   		    {
-  			    cycle_number += miss_penalty + l2_used;
-            l2_used = 0;
+  			    cycle_number += miss_penalty;
   			    I_misses++;
   			    L2_accesses++;
   		    }
