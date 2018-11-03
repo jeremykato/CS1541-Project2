@@ -1,7 +1,7 @@
 /*REPURPOSED QUEUE CODE FROM MY CS1550 PROJECT*/
 /*USE THIS QUEUE TO REPRESENT THE WRITE BUFFER*/
 
-#include <sys/mman.h>
+#include <stdlib.h>
 
 //simple queue holds car information
 struct zqueue {
@@ -25,7 +25,7 @@ void initialize_queue(struct zqueue *q, int queue_capacity)
 	q->size = 0;
 	q->front = 0;
 	q->back = -1;
-	q->elements = mmap(NULL, sizeof(int) * queue_capacity, PROT_READ | PROT_WRITE, MAP_SHARED | MAP_ANONYMOUS, 0, 0);
+	q->elements = (int *)malloc(sizeof(int) * queue_capacity);
 }
 
 //add an element to the back of the queue
