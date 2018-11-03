@@ -163,8 +163,8 @@ int main(int argc, char **argv)
 	  if(D_accesses > 0)
 	  	d_missrate = 100 *((double)D_misses/D_accesses);
     printf("+ Simulation terminates at cycle : %u\n", cycle_number);
-    printf("L1 Data cache:\t\t%u accesses, %u hits, %u misses, %0.2f%% miss rate, %u write backs\n", D_accesses, (D_accesses - D_misses), D_misses, d_missrate, d_writebacks);
-    printf("L1 Instruction cache:\t%u accesses, %u hits, %u misses, %0.2f%% miss rate\n",I_accesses, (I_accesses - I_misses), I_misses, i_missrate);
+    printf("L1 Data cache:\t\t%u accesses, %u hits, %u misses, %0.4f%% miss rate, %u write backs\n", D_accesses, (D_accesses - D_misses), D_misses, d_missrate, d_writebacks);
+    printf("L1 Instruction cache:\t%u accesses, %u hits, %u misses, %0.4f%% miss rate\n",I_accesses, (I_accesses - I_misses), I_misses, i_missrate);
 	  printf("L2 cache:\t\t%u accesses\n", L2_accesses);
 	  printf("Write Buffer:\t\t%u N1, %u N2\n", WB_N1, WB_N2);
       break;
