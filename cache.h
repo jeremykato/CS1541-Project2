@@ -73,6 +73,8 @@ int tag ;
 int way ;
 int max ;
 
+if(!cp->nsets)
+   return 0;
 block_address = (address / cp->blocksize);
 tag = block_address / cp->nsets;
 index = block_address - (tag * cp->nsets) ;
