@@ -222,7 +222,7 @@ int main(int argc, char **argv)
 		  		D_misses++;
 		  		if(WB_size){
 			  		cycle_number++; //check write buffer penalty
-			  		if(contains(&write_buffer, MEM.Addr)) //miss found in WB
+			  		if(contains( &write_buffer, (MEM.Addr / B_size) )) //miss found in WB
 			  		{
 			  			WB_N1++;
 			  			access_result = 0; //now it's an effective hit
@@ -270,7 +270,7 @@ int main(int argc, char **argv)
 		  		if(WB_size){
 			  		cycle_number++; //check write buffer penalty
             //printf("checking the write buffer of size %d\n", write_buffer.size);
-			  		if(contains(&write_buffer, MEM.Addr)) //miss found in WB
+			  		if(contains( &write_buffer, (MEM.Addr / B_size) )) //miss found in WB
 			  		{
 			  			WB_N1++;
 			  			access_result = 0; //now it's an effective hit

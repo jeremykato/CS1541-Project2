@@ -11,7 +11,7 @@
 
 struct cache_blk_t { // note that no actual data will be stored in the cache
   unsigned long tag;
-  unsigned long address;
+  unsigned int address; //the block address
   char valid;
   char dirty;
   unsigned LRU;	//to be used to build the LRU stack for the blocks in a cache set
@@ -91,7 +91,7 @@ for (way=0 ; way< cp->assoc ; way++)		/* look for an invalid entry */
 	{
       cp->blocks[index][way].valid = 1 ;
       cp->blocks[index][way].tag = tag ;
-      cp->blocks[index][way].address = address ;
+      cp->blocks[index][way].address = block_address;
 	  updateLRU(cp, index, way);
 	  cp->blocks[index][way].dirty = 0;
       if(access_type == 1) cp->blocks[index][way].dirty = 1 ;
@@ -106,9 +106,9 @@ for (way=0 ; way< cp->assoc ; way++)		/* look for an invalid entry */
     way = i ;
   }
 // cp->blocks[index][way] is the LRU block
-*evict_to_return = cp->blocks[index][way].address; //return evicted block's address for the WB
+*evict_to_return = (cp->blocks[index][way].address); //return evicted block's address for the WB
 cp->blocks[index][way].tag = tag;
-cp->blocks[index][way].address = address ;
+cp->blocks[index][way].address = block_address;
 updateLRU(cp, index, way);
 if (cp->blocks[index][way].dirty == 0)
   {											/* the evicted block is clean*/
