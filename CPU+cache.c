@@ -80,7 +80,10 @@ int main(int argc, char **argv)
   int flush_counter = 6; //5 stage pipeline and 2-part buffer, so we have to move 6 instructions once trace is done
   unsigned int stalled = 0;
   unsigned int l2_used = 0;
+  unsigned int buffer_writing = 0;
   int cycle_number = -2;  //start at -2 to ignore filling the PREFETCH QUEUE
+
+  int access_result;
 
   memset(ht, 0, HASH_TABLE_SIZE * sizeof(struct prediction));
 
@@ -122,13 +125,13 @@ int main(int argc, char **argv)
   	if(l2_used)
   		l2_used--;
 
-  	if(stalled)
-  		{
-  			cycle_number++;
-  			stalled--;
-  			continue;
-  		}
-
+    if(stalled)
+    {
+     cycle_number++;
+		 stalled--;
+		 continue;
+    }
+    
     int has_data_hazard = check_data_hazard(&PREFETCH[0], &PREFETCH[1]);
 
     if(prediction_method == 0 && check_control_hazard(&PREFETCH[0], &PREFETCH[1]))
@@ -154,6 +157,7 @@ int main(int argc, char **argv)
     if (!size && flush_counter==0) {       /* no more instructions (instructions) to simulate */
 
       //consume any remaining write buffer entries
+
       cycle_number += l2_used;
       while(write_buffer.size > 0)
       {
@@ -166,7 +170,6 @@ int main(int argc, char **argv)
 	  double d_missrate = 0;
 	  if(D_accesses > 0)
 	  	d_missrate = 100 *((double)D_misses/D_accesses);
-
       printf("+ Simulation terminates at cycle : %u\n", cycle_number);
       printf("L1 Data cache:\t\t%u accesses, %u hits, %u misses, %0.2f%% miss rate, %u write backs\n", D_accesses, (D_accesses - D_misses), D_misses, d_missrate, d_writebacks);
       printf("L1 Instruction cache:\t%u accesses, %u hits, %u misses, %0.2f%% miss rate\n",I_accesses, (I_accesses - I_misses), I_misses, i_missrate);
@@ -198,21 +201,21 @@ int main(int argc, char **argv)
       }
       else
       {
-      	int access_result;
       	if(!has_data_hazard && !squash_counter){
 
-          memcpy(&PREFETCH[1], tr_entry , sizeof(IF)); //get next instruction
-          access_result = cache_access(I_cache, IF.PC, 0, &evicted_block); //check for a hit
-          I_accesses++;
-
+            memcpy(&PREFETCH[1], tr_entry , sizeof(IF)); //get next instruction
+            access_result = cache_access(I_cache, IF.PC, 0, &evicted_block); //check for a hit
+            I_accesses++;
           if (access_result > 0)	/* stall the pipe if instruction fetch returns a miss */
-		  {
-			  stalled += miss_penalty;
-			  l2_used += miss_penalty;
-			  I_misses++;
-			  L2_accesses++;
-		  }
-		  
+  		    {
+  			    stalled += miss_penalty;
+  			    l2_used += miss_penalty;
+  			    I_misses++;
+  			    L2_accesses++;
+  		    }
+		    }
+      }
+
 		  if(MEM.type == ti_LOAD)
 		  {
 		  	D_accesses++;
@@ -244,6 +247,7 @@ int main(int argc, char **argv)
 			  		else
 			  		{
 			  			cycle_number+=l2_used;		//finish current transaction
+              stalled = 0;
 			  			l2_used = 0;
 			  			dequeue(&write_buffer);		//forced writeback
 			  			cycle_number += miss_penalty;
@@ -270,6 +274,7 @@ int main(int argc, char **argv)
 		  		D_misses++;
 		  		if(WB_size){
 			  		cycle_number++; //check write buffer penalty
+            //printf("checking the write buffer of size %d\n", write_buffer.size);
 			  		if(contains(&write_buffer, MEM.PC)) //miss found in WB
 			  		{
 			  			WB_N1++;
@@ -293,6 +298,7 @@ int main(int argc, char **argv)
 			  		{
 			  			cycle_number+=l2_used;
 			  			l2_used = 0;
+              stalled = 0;
 			  			dequeue(&write_buffer);
 			  			cycle_number += miss_penalty;
 			  			enqueue(&write_buffer, evicted_block);
@@ -309,25 +315,23 @@ int main(int argc, char **argv)
 		  		L2_accesses++;
 		  	}
 		  }
-        }
-      }
 
       if(squash_counter)
         squash_counter--;
       if(!stalled)
       {
-      	if(WB_size && !l2_used == 0 && write_buffer.size > 0)
+      	if(WB_size && !l2_used && write_buffer.size > 0)
       	{
       		dequeue(&write_buffer); //assume can't access this once WB begins
       		l2_used += miss_penalty;
+          buffer_writing += miss_penalty;
       		L2_accesses++;
       	}
       }
 
       //printf("==============================================================================\n");
-    }
 
-
+  }
     if (trace_view_on && cycle_number>=5) {/* print the executed instruction if trace_view_on=1 */
       switch(WB.type) {
         case ti_NOP:
