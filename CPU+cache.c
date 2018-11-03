@@ -196,8 +196,14 @@ int main(int argc, char **argv)
       	if(!has_data_hazard && !squash_counter){
 
             memcpy(&PREFETCH[1], tr_entry , sizeof(IF)); //get next instruction
-            access_result = cache_access(I_cache, IF.PC, 0, &evicted_block); //check for a hit
-            I_accesses++;
+            if(IF.type != ti_NOP && IF.type != ti_SQUASHED)
+            {
+              access_result = cache_access(I_cache, IF.PC, 0, &evicted_block); //check for a hit
+              I_accesses++;
+            }
+            else
+              access_result = 0;
+            
           if (access_result > 0)	/* stall the pipe if instruction fetch returns a miss */
   		    {
   			    cycle_number += miss_penalty;
@@ -423,8 +429,10 @@ void insert_noop(struct instruction *loc)
 void insert_squashed(struct instruction *loc)
 {
   struct instruction SQUASHED_OP;
+  uint old_PC = loc->PC;
   memset(&SQUASHED_OP, 0, sizeof(struct instruction));
   SQUASHED_OP.type = ti_SQUASHED;
+  SQUASHED_OP.PC = old_PC;
   *loc = SQUASHED_OP;
 }
 
