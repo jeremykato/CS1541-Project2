@@ -93,6 +93,7 @@ for (way=0 ; way< cp->assoc ; way++)		/* look for an invalid entry */
 	{
       cp->blocks[index][way].valid = 1 ;
       cp->blocks[index][way].tag = tag ;
+      cp->blocks[index][way].LRU = way ;
       cp->blocks[index][way].address = block_address;
 	  updateLRU(cp, index, way);
 	  cp->blocks[index][way].dirty = 0;
