@@ -11,7 +11,7 @@
    IDS: zdw9, aly31, jdk81
    compile with gcc -o pipeline five_stage.c
    and execute using
-   ./pipeline  /afs/cs.pitt.edu/courses/1541/short_traces/sample.tr	0
+   ./pipeline  /afs/cs.pitt.edu/courses/1541/short_traces/sample.tr 0
 ***************************************************************/
 
 #include <stdio.h>
@@ -34,39 +34,39 @@ unsigned char is_right_target(struct instruction *instr);
 
 struct prediction ht[HASH_TABLE_SIZE];
 struct instruction PREFETCH[2];
-struct zqueue write_buffer;				//the actual write buffer
+struct zqueue write_buffer;             //the actual write buffer
 
 // cache statistics
-unsigned int I_accesses = 0;	//instruction cache hits + misses
+unsigned int I_accesses = 0;    //instruction cache hits + misses
 unsigned int I_misses = 0;
-unsigned int D_accesses = 0;	//data cache hits + misses
+unsigned int D_accesses = 0;    //data cache hits + misses
 unsigned int D_misses = 0;
 unsigned int WB_accesses = 0;      
 unsigned int d_writebacks = 0;  //# of times we write back from L1 to L2
 unsigned int L2_accesses = 0;   
-unsigned int WB_N1 = 0;			//# of times we find an L1 miss in the write buffer before checking L2
-unsigned int WB_N2 = 0;			//# of times we evict a dirty block but the write buffer is full
+unsigned int WB_N1 = 0;         //# of times we find an L1 miss in the write buffer before checking L2
+unsigned int WB_N2 = 0;         //# of times we evict a dirty block but the write buffer is full
 
 int main(int argc, char **argv)
 {
   FILE * config;
   config = fopen("cache_config.txt", "r");
   if(config == NULL) {
-  	  perror("Error opening file");
-  	  return(-1);
+      perror("Error opening file");
+      return(-1);
   }
 
-  unsigned int I_size;        	//size of the instruction cache, in KB
-  unsigned int I_assoc;			//associativity of the instruction cache
-  unsigned int D_size;			//size of the data cache, in KB
-  unsigned int D_assoc;			//associativity of the data cache
-  unsigned int B_size;			//block size for both L1 caches and the L2 cache
-  unsigned int WB_size;			//size of the write buffer in entries (0 means no buffer)
-  unsigned int miss_penalty;	//the number of cycles it takes to access the L2 cache
+  unsigned int I_size;          //size of the instruction cache, in KB
+  unsigned int I_assoc;         //associativity of the instruction cache
+  unsigned int D_size;          //size of the data cache, in KB
+  unsigned int D_assoc;         //associativity of the data cache
+  unsigned int B_size;          //block size for both L1 caches and the L2 cache
+  unsigned int WB_size;         //size of the write buffer in entries (0 means no buffer)
+  unsigned int miss_penalty;    //the number of cycles it takes to access the L2 cache
 
   if(fscanf(config, "%d %d %d %d %d %d %d", &I_size, &I_assoc, &D_size, &D_assoc, &B_size, &WB_size,&miss_penalty) <= 0){
-  	  printf("Could not parse file properly");
-  	  exit(-1);
+      printf("Could not parse file properly");
+      exit(-1);
   }
   fclose(config);
 
@@ -115,14 +115,14 @@ int main(int argc, char **argv)
   D_cache = cache_create(D_size, B_size, D_assoc);
 
   if(WB_size)
-  	initialize_queue(&write_buffer, WB_size);
+    initialize_queue(&write_buffer, WB_size);
 
   unsigned int evicted_block; //holds the address of an evicted block, if any
 
   while(1) {
 
-  	if(l2_used)
-  		l2_used--;
+    if(l2_used)
+        l2_used--;
     
     int has_data_hazard = check_data_hazard(&PREFETCH[0], &PREFETCH[1]);
 
@@ -153,20 +153,20 @@ int main(int argc, char **argv)
       cycle_number += l2_used;
       while(write_buffer.size > 0)
       {
-      	dequeue(&write_buffer);
-      	cycle_number += miss_penalty;
-      	L2_accesses++;
+        dequeue(&write_buffer);
+        cycle_number += miss_penalty;
+        L2_accesses++;
       }
 
-	  double i_missrate = 100 *((double)I_misses/I_accesses);
-	  double d_missrate = 0;
-	  if(D_accesses > 0)
-	  	d_missrate = 100 *((double)D_misses/D_accesses);
-    printf("+ Simulation terminates at cycle : %u\n", cycle_number);
-    printf("L1 Data cache:\t\t%u accesses, %u hits, %u misses, %0.4f%% miss rate, %u write backs\n", D_accesses, (D_accesses - D_misses), D_misses, d_missrate, d_writebacks);
-    printf("L1 Instruction cache:\t%u accesses, %u hits, %u misses, %0.4f%% miss rate\n",I_accesses, (I_accesses - I_misses), I_misses, i_missrate);
-	  printf("L2 cache:\t\t%u accesses\n", L2_accesses);
-	  printf("Write Buffer:\t\t%u N1, %u N2\n", WB_N1, WB_N2);
+      double i_missrate = 100 *((double)I_misses/I_accesses);
+      double d_missrate = 0;
+      if(D_accesses > 0)
+        d_missrate = 100 *((double)D_misses/D_accesses);
+      printf("+ Simulation terminates at cycle : %u\n", cycle_number);
+      printf("L1 Data cache:\t\t%u accesses, %u hits, %u misses, %0.4f%% miss rate, %u write backs\n", D_accesses, (D_accesses - D_misses), D_misses, d_missrate, d_writebacks);
+      printf("L1 Instruction cache:\t%u accesses, %u hits, %u misses, %0.4f%% miss rate\n",I_accesses, (I_accesses - I_misses), I_misses, i_missrate);
+      printf("L2 cache:\t\t%u accesses\n", L2_accesses);
+      printf("Write Buffer:\t\t%u N1, %u N2\n", WB_N1, WB_N2);
       break;
     }
     else{              /* move the pipeline forward */
@@ -193,7 +193,7 @@ int main(int argc, char **argv)
       }
       else
       {
-      	if(!has_data_hazard && !squash_counter){
+        if(!has_data_hazard && !squash_counter){
 
             memcpy(&PREFETCH[1], tr_entry , sizeof(IF)); //get next instruction
             if(IF.type != ti_NOP && IF.type != ti_SQUASHED)
@@ -204,116 +204,118 @@ int main(int argc, char **argv)
             else
               access_result = 0;
             
-          if (access_result > 0)	/* stall the pipe if instruction fetch returns a miss */
-  		    {
-  			    cycle_number += miss_penalty;
-  			    I_misses++;
-  			    L2_accesses++;
-  		    }
-		    }
+          if (access_result > 0)    /* stall the pipe if instruction fetch returns a miss */
+            {
+                cycle_number += miss_penalty;
+                I_misses++;
+                L2_accesses++;
+            }
+            }
       }
 
-		  if(MEM.type == ti_LOAD)
-		  {
-		  	D_accesses++;
-		  	access_result = cache_access(D_cache, MEM.Addr, 0, &evicted_block);
-		  	if(access_result > 0)
-		  	{
-		  		D_misses++;
-		  		if(WB_size){
-			  		cycle_number++; //check write buffer penalty
-			  		if(contains( &write_buffer, (MEM.Addr / B_size) )) //miss found in WB
-			  		{
-			  			WB_N1++;
-			  			access_result = 0; //now it's an effective hit
-			  		}
-		  		}
-		  	}
-		  	if (access_result == 1)
-		  	{
-		  		cycle_number += miss_penalty;
-		  		L2_accesses++;
-		  	}
-		  	else if (access_result == 2)
-		  	{
-		  		d_writebacks++;
-		  		if(WB_size){
-			  		if(write_buffer.size < write_buffer.capacity)
+          if(MEM.type == ti_LOAD)
+          {
+            D_accesses++;
+            access_result = cache_access(D_cache, MEM.Addr, 0, &evicted_block);
+            if(access_result > 0)
             {
-			  			enqueue(&write_buffer, evicted_block);
-              //printf("write_buffer size is %d \n\n", write_buffer.size);
+                D_misses++;
+                if(WB_size){
+                    cycle_number++; //check write buffer penalty
+                    if(contains( &write_buffer, (MEM.Addr / B_size) )) //miss found in WB
+                    {
+                        WB_N1++;
+                        access_result = 0; //now it's an effective hit
+                    }
+                }
             }
-			  		else
-			  		{
-              dequeue(&write_buffer);
-              cycle_number += miss_penalty + l2_used;
-              l2_used = 0;
-              enqueue(&write_buffer, evicted_block);
-              WB_N2++;
-              L2_accesses++;
-			  		}
-			  	}
-			  	else{ //need to writeback now if no write buffer
-			  		cycle_number += miss_penalty;
-			  	}
-		  		cycle_number += miss_penalty;
-		  		L2_accesses++;
-		  	}
-		  }
-		  else if(MEM.type == ti_STORE)
-		  {
-		  	D_accesses++;
-		  	access_result = cache_access(D_cache, MEM.Addr, 1, &evicted_block);
-		  	if(access_result > 0)
-		  	{
-		  		D_misses++;
-		  		if(WB_size){
-			  		cycle_number++; //check write buffer penalty
+            if (access_result == 1)
+            {
+                cycle_number += miss_penalty;
+                L2_accesses++;
+            }
+            else if (access_result == 2)
+            {
+                d_writebacks++;
+                if(WB_size){
+                    if(write_buffer.size < write_buffer.capacity)
+                    {
+                      enqueue(&write_buffer, evicted_block);
+                      //printf("write_buffer size is %d \n\n", write_buffer.size);
+                    }
+                    else
+                    {
+                      dequeue(&write_buffer);
+                      cycle_number += miss_penalty + l2_used;
+                      l2_used = 0;
+                      enqueue(&write_buffer, evicted_block);
+                      WB_N2++;
+                      L2_accesses++;
+                    }
+                }
+                else{ //need to writeback now if no write buffer
+                    cycle_number += miss_penalty;
+                    L2_accesses++;
+                }
+                cycle_number += miss_penalty;
+                L2_accesses++;
+            }
+          }
+          else if(MEM.type == ti_STORE)
+          {
+            D_accesses++;
+            access_result = cache_access(D_cache, MEM.Addr, 1, &evicted_block);
+            if(access_result > 0)
+            {
+                D_misses++;
+                if(WB_size){
+                    cycle_number++; //check write buffer penalty
             //printf("checking the write buffer of size %d\n", write_buffer.size);
-			  		if(contains( &write_buffer, (MEM.Addr / B_size) )) //miss found in WB
-			  		{
-			  			WB_N1++;
-			  			access_result = 0; //now it's an effective hit
-			  		}
-			  	}
-		  	}
-		  	if (access_result == 1)
-		  	{
-		  		cycle_number += miss_penalty;
-		  		L2_accesses++;
-		  	}
-		  	else if (access_result == 2)
-		  	{
-		  		d_writebacks++;
-		  		if(WB_size){
-			  		if(write_buffer.size < WB_size)
-			  			enqueue(&write_buffer, evicted_block);
-			  		else
-			  		{
-			  			dequeue(&write_buffer);
+                    if(contains( &write_buffer, (MEM.Addr / B_size) )) //miss found in WB
+                    {
+                        WB_N1++;
+                        access_result = 0; //now it's an effective hit
+                    }
+                }
+            }
+            if (access_result == 1)
+            {
+                cycle_number += miss_penalty;
+                L2_accesses++;
+            }
+            else if (access_result == 2)
+            {
+                d_writebacks++;
+                if(WB_size){
+                    if(write_buffer.size < WB_size)
+                        enqueue(&write_buffer, evicted_block);
+                    else
+                    {
+                        dequeue(&write_buffer);
               cycle_number += miss_penalty + l2_used;
               l2_used = 0;
-			  			enqueue(&write_buffer, evicted_block);
-			  			WB_N2++;
-			  			L2_accesses++;
-			  		}
-			  	}
-			  	else{ //need to writeback now if no write buffer
-			  		cycle_number += miss_penalty;
-			  	}
-		  		cycle_number += miss_penalty;
-		  		L2_accesses++;
-		  	}
-		  }
+                        enqueue(&write_buffer, evicted_block);
+                        WB_N2++;
+                        L2_accesses++;
+                    }
+                }
+                else{ //need to writeback now if no write buffer
+                    cycle_number += miss_penalty;
+                    L2_accesses++;
+                }
+                cycle_number += miss_penalty;
+                L2_accesses++;
+            }
+          }
 
       if(squash_counter)
         squash_counter--;
-    	if(WB_size && !l2_used && write_buffer.size > 0)
-    	{
-    		dequeue(&write_buffer); //assume can't access this once WB begins
-    		l2_used += miss_penalty;
-    		L2_accesses++;
-    	}
+        if(WB_size && !l2_used && write_buffer.size > 0)
+        {
+            dequeue(&write_buffer); //assume can't access this once WB begins
+            l2_used += miss_penalty;
+            L2_accesses++;
+        }
 
       //printf("==============================================================================\n");
 
