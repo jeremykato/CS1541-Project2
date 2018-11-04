@@ -65,7 +65,7 @@ int main(int argc, char **argv)
   unsigned int miss_penalty;    //the number of cycles it takes to access the L2 cache
 
   if(fscanf(config, "%d %d %d %d %d %d %d", &I_size, &I_assoc, &D_size, &D_assoc, &B_size, &WB_size,&miss_penalty) <= 0){
-      printf("Could not parse file properly");
+      printf("Could not parse file properly\n");
       exit(-1);
   }
   fclose(config);
@@ -79,7 +79,6 @@ int main(int argc, char **argv)
   int squash_counter = 0;
   int flush_counter = 6; //5 stage pipeline and 2-part buffer, so we have to move 6 instructions once trace is done
   unsigned int l2_used = 0;
-  unsigned int buffer_writing = 0;
   int cycle_number = -2;  //start at -2 to ignore filling the PREFETCH QUEUE
 
   int access_result;
@@ -120,9 +119,6 @@ int main(int argc, char **argv)
   unsigned int evicted_block; //holds the address of an evicted block, if any
 
   while(1) {
-
-    if(l2_used)
-        l2_used--;
     
     int has_data_hazard = check_data_hazard(&PREFETCH[0], &PREFETCH[1]);
 
@@ -171,6 +167,9 @@ int main(int argc, char **argv)
     }
     else{              /* move the pipeline forward */
 
+      if(l2_used)  //memory makes progress if in use
+        l2_used--;
+
       cycle_number++;
 
       /* move instructions one stage ahead */
@@ -204,14 +203,18 @@ int main(int argc, char **argv)
             else
               access_result = 0;
             
-          if (access_result > 0)    /* stall the pipe if instruction fetch returns a miss */
+            if (access_result > 0)    /* stall the pipe if instruction fetch returns a miss */
             {
-                cycle_number += miss_penalty;
+                cycle_number += miss_penalty + l2_used;
+                l2_used = 1;
                 I_misses++;
                 L2_accesses++;
             }
-            }
+        }
       }
+
+      if(squash_counter)
+        squash_counter--;
 
           if(MEM.type == ti_LOAD)
           {
@@ -231,7 +234,8 @@ int main(int argc, char **argv)
             }
             if (access_result == 1)
             {
-                cycle_number += miss_penalty;
+                cycle_number += miss_penalty + l2_used;
+                l2_used = 1;
                 L2_accesses++;
             }
             else if (access_result == 2)
@@ -247,7 +251,7 @@ int main(int argc, char **argv)
                     {
                       dequeue(&write_buffer);
                       cycle_number += miss_penalty + l2_used;
-                      l2_used = 0;
+                      l2_used = 1;
                       enqueue(&write_buffer, evicted_block);
                       WB_N2++;
                       L2_accesses++;
@@ -257,7 +261,8 @@ int main(int argc, char **argv)
                     cycle_number += miss_penalty;
                     L2_accesses++;
                 }
-                cycle_number += miss_penalty;
+                cycle_number += miss_penalty + l2_used;
+                l2_used = 1;
                 L2_accesses++;
             }
           }
@@ -280,7 +285,8 @@ int main(int argc, char **argv)
             }
             if (access_result == 1)
             {
-                cycle_number += miss_penalty;
+                cycle_number += miss_penalty + l2_used;
+                l2_used = 1;
                 L2_accesses++;
             }
             else if (access_result == 2)
@@ -292,8 +298,8 @@ int main(int argc, char **argv)
                     else
                     {
                         dequeue(&write_buffer);
-              cycle_number += miss_penalty + l2_used;
-              l2_used = 0;
+                        cycle_number += miss_penalty + l2_used;
+                        l2_used = 1;
                         enqueue(&write_buffer, evicted_block);
                         WB_N2++;
                         L2_accesses++;
@@ -303,19 +309,18 @@ int main(int argc, char **argv)
                     cycle_number += miss_penalty;
                     L2_accesses++;
                 }
-                cycle_number += miss_penalty;
+                cycle_number += miss_penalty + l2_used;
+                l2_used = 1;
                 L2_accesses++;
             }
           }
 
-      if(squash_counter)
-        squash_counter--;
-        if(WB_size && !l2_used && write_buffer.size > 0)
-        {
-            dequeue(&write_buffer); //assume can't access this once WB begins
-            l2_used += miss_penalty;
-            L2_accesses++;
-        }
+            if(WB_size && !l2_used && write_buffer.size > 0)
+            {
+                dequeue(&write_buffer); //assume can't access this once WB begins
+                l2_used += miss_penalty;
+                L2_accesses++;
+            }
 
       //printf("==============================================================================\n");
 
