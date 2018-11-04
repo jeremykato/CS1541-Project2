@@ -82,6 +82,7 @@ int main(int argc, char **argv)
   int cycle_number = -2;  //start at -2 to ignore filling the PREFETCH QUEUE
 
   int access_result;
+  int mem_used_this_cycle = 0;
 
   memset(ht, 0, HASH_TABLE_SIZE * sizeof(struct prediction));
 
@@ -206,7 +207,8 @@ int main(int argc, char **argv)
             if (access_result > 0)    /* stall the pipe if instruction fetch returns a miss */
             {
                 cycle_number += miss_penalty + l2_used;
-                l2_used = 1;
+                l2_used = 0;
+                mem_used_this_cycle = 1;
                 I_misses++;
                 L2_accesses++;
             }
@@ -235,7 +237,8 @@ int main(int argc, char **argv)
             if (access_result == 1)
             {
                 cycle_number += miss_penalty + l2_used;
-                l2_used = 1;
+                l2_used = 0;
+                mem_used_this_cycle = 1;
                 L2_accesses++;
             }
             else if (access_result == 2)
@@ -251,7 +254,8 @@ int main(int argc, char **argv)
                     {
                       dequeue(&write_buffer);
                       cycle_number += miss_penalty + l2_used;
-                      l2_used = 1;
+                      l2_used = 0;
+                      mem_used_this_cycle = 1;
                       enqueue(&write_buffer, evicted_block);
                       WB_N2++;
                       L2_accesses++;
@@ -263,6 +267,7 @@ int main(int argc, char **argv)
                 }
                 cycle_number += miss_penalty + l2_used;
                 l2_used = 1;
+                mem_used_this_cycle = 1;
                 L2_accesses++;
             }
           }
@@ -286,7 +291,8 @@ int main(int argc, char **argv)
             if (access_result == 1)
             {
                 cycle_number += miss_penalty + l2_used;
-                l2_used = 1;
+                l2_used = 0;
+                mem_used_this_cycle = 1;
                 L2_accesses++;
             }
             else if (access_result == 2)
@@ -310,17 +316,20 @@ int main(int argc, char **argv)
                     L2_accesses++;
                 }
                 cycle_number += miss_penalty + l2_used;
-                l2_used = 1;
+                l2_used = 0;
+                mem_used_this_cycle = 1;
                 L2_accesses++;
             }
           }
 
-            if(WB_size && !l2_used && write_buffer.size > 0)
+            if(WB_size && !l2_used && !mem_used_this_cycle && write_buffer.size > 0)
             {
                 dequeue(&write_buffer); //assume can't access this once WB begins
                 l2_used += miss_penalty;
                 L2_accesses++;
             }
+
+            mem_used_this_cycle = 0;
 
       //printf("==============================================================================\n");
 
