@@ -1,16 +1,10 @@
-/*
- * CPU.h
- *
- *  Created on: Oct 29, 2018
- *      Author: SilverDragoon
- */
 
-/*
- * CPU.h
- *
- *  Created on: Sep 25, 2018
- *      Author: SilverDragoon
- */
+/**************************************************************/
+/* CS/COE 1541
+   Project 2 5-Stage Pipeline Simulator with Cache simulation
+   Collaborators: Zachary Whitney, Albert Yang, Jeremy Kato
+   IDS: zdw9, aly31, jdk81
+***************************************************************/
 
 #ifndef TRACE_ITEM_H
 #define TRACE_ITEM_H

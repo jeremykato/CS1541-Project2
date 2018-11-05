@@ -1,10 +1,9 @@
-/*
- * cache.h
- *
- *  Created on: Oct 29, 2018
- *      Author: SilverDragoon
- */
-
+/**************************************************************/
+/* CS/COE 1541
+   Project 2 5-Stage Pipeline Simulator with Cache simulation
+   Collaborators: Zachary Whitney, Albert Yang, Jeremy Kato
+   IDS: zdw9, aly31, jdk81
+***************************************************************/
 /* This file contains a functional simulator of an associative cache with LRU replacement*/
 #include <stdlib.h>
 #include <stdio.h>

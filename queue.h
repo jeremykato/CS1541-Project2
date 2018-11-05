@@ -1,4 +1,11 @@
-/*REPURPOSED QUEUE CODE FROM MY CS1550 PROJECT*/
+/**************************************************************/
+/* CS/COE 1541
+   Project 2 5-Stage Pipeline Simulator with Cache simulation
+   Collaborators: Zachary Whitney, Albert Yang, Jeremy Kato
+   IDS: zdw9, aly31, jdk81
+***************************************************************/
+
+/*REPURPOSED QUEUE CODE FROM A CS1550 PROJECT*/
 /*USE THIS QUEUE TO REPRESENT THE WRITE BUFFER*/
 
 #include <stdlib.h>
@@ -61,6 +68,7 @@ int peek(struct zqueue *q)
 //performs a sequential search
 int contains(struct zqueue *q, int value)
 {
+	
 	int j = q->front; //physical index
 	for(int i = 0; i < q->size; i++) //logical index
 	{
@@ -70,5 +78,6 @@ int contains(struct zqueue *q, int value)
 		}
 		j = (j + 1) % q->capacity;
 	}
+
 	return 0;
 }
