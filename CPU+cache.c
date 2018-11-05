@@ -80,7 +80,7 @@ int main(int argc, char **argv)
   int flush_counter = 6; //5 stage pipeline and 2-part buffer, so we have to move 6 instructions once trace is done
   unsigned int l2_used = 0;
   int cycle_number = -2;  //start at -2 to ignore filling the PREFETCH QUEUE
-  int buffer_timer = 0;
+  int buffer_stalled = 0;
   int access_result;
 
   memset(ht, 0, HASH_TABLE_SIZE * sizeof(struct prediction));
@@ -167,15 +167,11 @@ int main(int argc, char **argv)
     }
     else{              /* move the pipeline forward */
 
+      if(l2_used == 1)
+        dequeue(&write_buffer);
       if(l2_used)  //memory makes progress if in use
         l2_used--;
-      if(buffer_timer)
-         buffer_timer--;
-      if(!buffer_timer)
-      {
-         dequeue(&write_buffer); //assume can't access this once WB begins
-      }
-
+      
       cycle_number++;
 
       /* move instructions one stage ahead */
@@ -211,8 +207,11 @@ int main(int argc, char **argv)
             
             if (access_result > 0)    /* stall the pipe if instruction fetch returns a miss */
             {
+                if(l2_used)
+                    dequeue(&write_buffer);
                 cycle_number += miss_penalty + l2_used;
                 l2_used = 0;
+                buffer_stalled = 1;
                 I_misses++;
                 L2_accesses++;
             }
@@ -240,8 +239,11 @@ int main(int argc, char **argv)
             }
             if (access_result == 1)
             {
+                if(l2_used)
+                    dequeue(&write_buffer);
                 cycle_number += miss_penalty + l2_used;
                 l2_used = 0;
+                buffer_stalled = 1;
                 L2_accesses++;
             }
             else if (access_result == 2)
@@ -255,8 +257,11 @@ int main(int argc, char **argv)
                     else
                     {
                       dequeue(&write_buffer);
+                      if(!l2_used)
+                         l2_used += miss_penalty;
                       cycle_number += miss_penalty + l2_used;
                       l2_used = 0;
+                      buffer_stalled = 1;
                       enqueue(&write_buffer, evicted_block);
                       WB_N2++;
                       L2_accesses++;
@@ -266,8 +271,11 @@ int main(int argc, char **argv)
                     cycle_number += miss_penalty;
                     L2_accesses++;
                 }
+                if(l2_used)
+                    dequeue(&write_buffer);
                 cycle_number += miss_penalty + l2_used;
                 l2_used = 0;
+                buffer_stalled = 1;
                 L2_accesses++;
             }
           }
@@ -289,8 +297,11 @@ int main(int argc, char **argv)
             }
             if (access_result == 1)
             {
+                if(l2_used)
+                    dequeue(&write_buffer);
                 cycle_number += miss_penalty + l2_used;
                 l2_used = 0;
+                buffer_stalled = 1;
                 L2_accesses++;
             }
             else if (access_result == 2)
@@ -302,8 +313,11 @@ int main(int argc, char **argv)
                     else
                     {
                         dequeue(&write_buffer);
+                        if(!l2_used)
+                          l2_used += miss_penalty;
                         cycle_number += miss_penalty + l2_used;
                         l2_used = 0;
+                        buffer_stalled = 1;
                         enqueue(&write_buffer, evicted_block);
                         WB_N2++;
                         L2_accesses++;
@@ -313,21 +327,23 @@ int main(int argc, char **argv)
                     cycle_number += miss_penalty;
                     L2_accesses++;
                 }
+                if(l2_used)
+                    dequeue(&write_buffer);
                 cycle_number += miss_penalty + l2_used;
                 l2_used = 0;
+                buffer_stalled = 1;
                 L2_accesses++;
             }
           }
 
-            if(WB_size && !l2_used && write_buffer.size > 0)
+            if(WB_size && !l2_used && !buffer_stalled && write_buffer.size > 0)
             {
-                if(!buffer_timer)
-                {
-                    buffer_timer += miss_penalty;
-                    l2_used += miss_penalty;
-                    L2_accesses++;
-                }
+                l2_used += miss_penalty;
+                L2_accesses++;
             }
+
+
+            buffer_stalled = 0;
 
       //printf("==============================================================================\n");
 
