@@ -80,9 +80,8 @@ int main(int argc, char **argv)
   int flush_counter = 6; //5 stage pipeline and 2-part buffer, so we have to move 6 instructions once trace is done
   unsigned int l2_used = 0;
   int cycle_number = -2;  //start at -2 to ignore filling the PREFETCH QUEUE
-
+  int buffer_timer = 0;
   int access_result;
-  int mem_used_this_cycle = 0;
 
   memset(ht, 0, HASH_TABLE_SIZE * sizeof(struct prediction));
 
@@ -170,6 +169,12 @@ int main(int argc, char **argv)
 
       if(l2_used)  //memory makes progress if in use
         l2_used--;
+      if(buffer_timer)
+         buffer_timer--;
+      if(!buffer_timer)
+      {
+         dequeue(&write_buffer); //assume can't access this once WB begins
+      }
 
       cycle_number++;
 
@@ -208,7 +213,6 @@ int main(int argc, char **argv)
             {
                 cycle_number += miss_penalty + l2_used;
                 l2_used = 0;
-                mem_used_this_cycle = 1;
                 I_misses++;
                 L2_accesses++;
             }
@@ -238,7 +242,6 @@ int main(int argc, char **argv)
             {
                 cycle_number += miss_penalty + l2_used;
                 l2_used = 0;
-                mem_used_this_cycle = 1;
                 L2_accesses++;
             }
             else if (access_result == 2)
@@ -248,14 +251,12 @@ int main(int argc, char **argv)
                     if(write_buffer.size < write_buffer.capacity)
                     {
                       enqueue(&write_buffer, evicted_block);
-                      //printf("write_buffer size is %d \n\n", write_buffer.size);
                     }
                     else
                     {
                       dequeue(&write_buffer);
                       cycle_number += miss_penalty + l2_used;
                       l2_used = 0;
-                      mem_used_this_cycle = 1;
                       enqueue(&write_buffer, evicted_block);
                       WB_N2++;
                       L2_accesses++;
@@ -266,8 +267,7 @@ int main(int argc, char **argv)
                     L2_accesses++;
                 }
                 cycle_number += miss_penalty + l2_used;
-                l2_used = 1;
-                mem_used_this_cycle = 1;
+                l2_used = 0;
                 L2_accesses++;
             }
           }
@@ -280,7 +280,6 @@ int main(int argc, char **argv)
                 D_misses++;
                 if(WB_size){
                     cycle_number++; //check write buffer penalty
-            //printf("checking the write buffer of size %d\n", write_buffer.size);
                     if(contains( &write_buffer, (MEM.Addr / B_size) )) //miss found in WB
                     {
                         WB_N1++;
@@ -292,7 +291,6 @@ int main(int argc, char **argv)
             {
                 cycle_number += miss_penalty + l2_used;
                 l2_used = 0;
-                mem_used_this_cycle = 1;
                 L2_accesses++;
             }
             else if (access_result == 2)
@@ -305,7 +303,7 @@ int main(int argc, char **argv)
                     {
                         dequeue(&write_buffer);
                         cycle_number += miss_penalty + l2_used;
-                        l2_used = 1;
+                        l2_used = 0;
                         enqueue(&write_buffer, evicted_block);
                         WB_N2++;
                         L2_accesses++;
@@ -317,19 +315,19 @@ int main(int argc, char **argv)
                 }
                 cycle_number += miss_penalty + l2_used;
                 l2_used = 0;
-                mem_used_this_cycle = 1;
                 L2_accesses++;
             }
           }
 
-            if(WB_size && !l2_used && !mem_used_this_cycle && write_buffer.size > 0)
+            if(WB_size && !l2_used && write_buffer.size > 0)
             {
-                dequeue(&write_buffer); //assume can't access this once WB begins
-                l2_used += miss_penalty;
-                L2_accesses++;
+                if(!buffer_timer)
+                {
+                    buffer_timer += miss_penalty;
+                    l2_used += miss_penalty;
+                    L2_accesses++;
+                }
             }
-
-            mem_used_this_cycle = 0;
 
       //printf("==============================================================================\n");
 
